@@ -14,7 +14,7 @@ docker compose up --build
 | Service | URL | Notes |
 |---|---|---|
 | API (gateway, operator, console, test endpoints) | http://localhost:8000 | gunicorn, 2 workers |
-| Console | http://localhost:3000 | Fleet and Sensors pages, timelines |
+| Console | http://localhost:3000 | Fleet and Sensors pages with situation tiles, register forms, coverage editor, operator actions, timelines |
 | Worker | — | background loop; idles when `TEST_MODE=1` |
 | Postgres 16 | localhost:5432 inside the compose network | user/db/password `fieldnet` |
 

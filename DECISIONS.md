@@ -124,7 +124,7 @@ makes a retried batch unable to double count even if a partial write had survive
 - Console lists: filter by status / lifecycle / coverage only; no sorting, no pagination.
 - No UI tests. The console API is tested; the pages are thin over it.
 - Timeline is a plain table with a collapsible `detail` for corrections.
-- `/api/v1/console/summary` exists (10 lines) but there is no dashboard page.
+- Situation counts are tiles at the top of the Fleet and Sensors pages (click to filter), not a separate dashboard page.
 - `run_due` scans every gateway per step (O(gateways) per event). Fine for a fleet of
   hundreds; a `next_due_at` column fixes it.
 - No authentication on the operator API, CORS open: an internal console.

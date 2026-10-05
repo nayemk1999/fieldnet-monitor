@@ -2,9 +2,12 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { ApiError, fetchSensors, sensorDecommission, type SensorRow } from "@/lib/api";
+import { ApiError, fetchGateways, fetchSensors, sensorDecommission, type GatewayRow, type SensorRow } from "@/lib/api";
 import { fmt, relative, title } from "@/lib/format";
 import { Badge, CLASS_TONE, COLLECTION_TONE, LIFECYCLE_TONE } from "@/components/Badge";
+import { Summary } from "@/components/Summary";
+import { RegisterSensor } from "@/components/RegisterSensor";
+import { CoverageEditor } from "@/components/CoverageEditor";
 
 const LIFECYCLES = ["pending", "active", "dormant", "sampling", "retired", "decommissioned"];
 
@@ -32,8 +35,10 @@ function NextEvaluation({ s, now }: { s: SensorRow; now: string }) {
 
 export default function SensorsPage() {
   const [data, setData] = useState<{ now: string; items: SensorRow[] } | null>(null);
+  const [gateways, setGateways] = useState<GatewayRow[]>([]);
   const [lifecycle, setLifecycle] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [version, setVersion] = useState(0);
 
   const load = useCallback(() => {
     fetchSensors(lifecycle || undefined)
@@ -42,6 +47,9 @@ export default function SensorsPage() {
         setError(null);
       })
       .catch((e: ApiError) => setError(`Could not load sensors: ${e.message}`));
+    fetchGateways()
+      .then((d) => setGateways(d.items))
+      .catch(() => undefined);
   }, [lifecycle]);
 
   useEffect(() => {
@@ -49,6 +57,11 @@ export default function SensorsPage() {
     const t = setInterval(load, 5000);
     return () => clearInterval(t);
   }, [load]);
+
+  const changed = () => {
+    setVersion((v) => v + 1);
+    load();
+  };
 
   async function decommission(s: SensorRow) {
     const reason = window.prompt(`Decommission ${s.sensor_id}. Reason (required):`);
@@ -59,7 +72,7 @@ export default function SensorsPage() {
     }
     try {
       await sensorDecommission(s.sensor_id, reason.trim());
-      load();
+      changed();
     } catch (e) {
       setError(`Decommission ${s.sensor_id} failed: ${(e as ApiError).message}`);
     }
@@ -68,6 +81,7 @@ export default function SensorsPage() {
   return (
     <>
       <h1>Sensors</h1>
+      <Summary kind="sensors" selected={lifecycle} onSelect={setLifecycle} refreshKey={version} />
       <div className="toolbar">
         <label>
           Lifecycle{" "}
@@ -80,6 +94,7 @@ export default function SensorsPage() {
             ))}
           </select>
         </label>
+        <RegisterSensor onDone={changed} onError={setError} />
         <span className="spacer" />
         {data && (
           <span className="muted small">
@@ -99,7 +114,7 @@ export default function SensorsPage() {
             <th>Next evaluation</th>
             <th>Quiet days</th>
             <th>Sampling cycles</th>
-            <th>Gateways</th>
+            <th>Covered by</th>
             <th></th>
           </tr>
         </thead>
@@ -136,7 +151,9 @@ export default function SensorsPage() {
                 )}
               </td>
               <td className="count">{s.sampling_cycles_done} / 2</td>
-              <td className="mono small">{s.gateway_ids.length ? s.gateway_ids.join(", ") : <Badge tone="bad">unassigned</Badge>}</td>
+              <td>
+                <CoverageEditor sensor={s} gateways={gateways} onDone={changed} onError={setError} />
+              </td>
               <td>
                 {s.lifecycle !== "decommissioned" && (
                   <button className="danger" onClick={() => decommission(s)}>

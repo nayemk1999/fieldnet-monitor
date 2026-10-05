@@ -99,3 +99,19 @@ export const sensorDecommission = (id: string, reason: string) =>
     method: "POST",
     body: JSON.stringify({ action: "decommission", reason }),
   });
+
+export type Summary = { now: string; gateways: Record<string, number>; sensors: Record<string, number> };
+
+export const fetchSummary = () => api<Summary>("/api/v1/console/summary");
+
+export const registerGateway = (gateway_id: string, name: string) =>
+  api<{ token: string }>("/api/v1/gateways", { method: "POST", body: JSON.stringify({ gateway_id, name }) });
+
+export const registerSensor = (sensor_id: string, type: string) =>
+  api<SensorRow>("/api/v1/sensors", { method: "POST", body: JSON.stringify({ sensor_id, type }) });
+
+export const setCoverage = (sensor_id: string, gateway_ids: string[]) =>
+  api<SensorRow>(`/api/v1/sensors/${encodeURIComponent(sensor_id)}/coverage`, {
+    method: "PUT",
+    body: JSON.stringify({ gateway_ids }),
+  });

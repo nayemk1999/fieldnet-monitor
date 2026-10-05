@@ -88,4 +88,10 @@ from `no_readings` (checked, nothing found) and from `readings`.
 }
 ```
 
-Situation counts for a dashboard tile. Every value is present, zero included.
+Situation counts. The console renders them as clickable tiles above each table; every value is present, zero included.
+
+## Writes the console makes
+
+All through the fixed operator API: `POST /api/v1/gateways` (register, the token is shown once),
+`POST /api/v1/sensors`, `PUT /api/v1/sensors/{id}/coverage` (the coverage editor offers every
+non-retired gateway), `POST /api/v1/gateways/{id}/actions`, `POST /api/v1/sensors/{id}/actions`.

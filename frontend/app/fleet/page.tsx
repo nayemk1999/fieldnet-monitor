@@ -5,6 +5,8 @@ import { useCallback, useEffect, useState } from "react";
 import { ApiError, fetchGateways, gatewayAction, type GatewayRow } from "@/lib/api";
 import { fmt, held, relative, title } from "@/lib/format";
 import { Badge, CLASS_TONE, COMMAND_TONE, STATUS_TONE } from "@/components/Badge";
+import { Summary } from "@/components/Summary";
+import { RegisterGateway } from "@/components/RegisterGateway";
 
 const STATUSES = ["new", "spare", "connected", "stale", "disconnected", "suspended", "retired"];
 
@@ -39,6 +41,7 @@ export default function FleetPage() {
   const [status, setStatus] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [version, setVersion] = useState(0); // bumps after any write so the tiles refresh at once
 
   const load = useCallback(() => {
     fetchGateways(status || undefined)
@@ -55,6 +58,11 @@ export default function FleetPage() {
     return () => clearInterval(t);
   }, [load]);
 
+  const changed = () => {
+    setVersion((v) => v + 1);
+    load();
+  };
+
   async function act(g: GatewayRow, action: string) {
     let reason: string | undefined;
     if (action === "suspend" || action === "retire") {
@@ -70,7 +78,7 @@ export default function FleetPage() {
     try {
       await gatewayAction(g.gateway_id, action, reason);
       setError(null);
-      load();
+      changed();
     } catch (e) {
       setError(`${title(action)} ${g.gateway_id} failed: ${(e as ApiError).message}`);
     } finally {
@@ -81,6 +89,7 @@ export default function FleetPage() {
   return (
     <>
       <h1>Fleet</h1>
+      <Summary kind="gateways" selected={status} onSelect={setStatus} refreshKey={version} />
       <div className="toolbar">
         <label>
           Status{" "}
@@ -93,6 +102,7 @@ export default function FleetPage() {
             ))}
           </select>
         </label>
+        <RegisterGateway onDone={changed} onError={setError} />
         <span className="spacer" />
         {data && (
           <span className="muted small">
