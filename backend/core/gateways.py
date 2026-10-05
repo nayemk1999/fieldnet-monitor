@@ -79,13 +79,17 @@ def command_timeout_due_at(gw: Gateway):
 
 
 def apply_due(gw: Gateway, now: datetime) -> bool:
-    """Apply timer transitions due at or before `now`, each effective at its own due time."""
+    """Apply timer transitions whose due time has passed, each effective at its own due time.
+
+    "12 hours have passed" and "within 10 minutes" are read strictly: a device on an exact
+    12-hour schedule is not stale at the instant its next cycle lands (see DECISIONS.md).
+    """
     changed = False
     due = stale_due_at(gw)
-    if due is not None and now >= due:
+    if due is not None and now > due:
         changed |= set_status(gw, "stale", due, "stale_after_12h_without_qualifying_evidence")
     due = command_timeout_due_at(gw)
-    if due is not None and now >= due:
+    if due is not None and now > due:
         cmd = latest_command(gw)
         failed = "stop_failed" if gw.command_state == "stop_pending" else "resume_failed"
         changed |= set_command_state(gw, failed, due, "command_not_acknowledged_in_10m", [str(cmd.command_id)])

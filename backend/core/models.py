@@ -54,6 +54,7 @@ class Sensor(models.Model):
     lifecycle_reason = models.TextField(null=True)
     lifecycle_since = models.DateTimeField()
     coverage = models.CharField(max_length=16, choices=_choices(SENSOR_COVERAGES), default="none")
+    collection = models.CharField(max_length=24, choices=_choices(COLLECTIONS), default="not_checked")
     quiet_checked_days = models.IntegerField(default=0)
     sampling_cycles_done = models.IntegerField(default=0)
     next_evaluation_at = models.DateTimeField(null=True)

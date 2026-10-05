@@ -1,3 +1,9 @@
-import os
+import pytest
+from rest_framework.test import APIClient
 
-os.environ["TEST_MODE"] = "1"
+from tests.harness import Harness
+
+
+@pytest.fixture
+def h(db):
+    return Harness(APIClient())
