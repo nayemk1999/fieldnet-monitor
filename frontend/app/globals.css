@@ -103,3 +103,12 @@ details pre { margin: 4px 0 0; font-size: 11px; background: #f6f7f9; padding: 6p
 .token-box { margin: 8px 0 12px; padding: 10px 12px; background: var(--ok-bg); border: 1px solid #bfe3cc; border-radius: 8px; }
 .token-box .token { margin: 6px 0; word-break: break-all; }
 .checks { display: flex; flex-direction: column; gap: 4px; }
+.sim { margin-bottom: 16px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; }
+.sim h2 { font-size: 15px; margin: 0 0 8px; }
+.sim-token { flex: 1; min-width: 260px; }
+.sim-buttons { margin: 8px 0; }
+.sim-log { display: flex; flex-direction: column; gap: 6px; max-height: 320px; overflow: auto; }
+.sim-entry pre { margin: 4px 0 0; padding: 6px 8px; background: #f6f7f9; border-radius: 6px; white-space: pre-wrap; word-break: break-all; }
+.form-row select { font: inherit; padding: 3px 6px; border: 1px solid var(--border); border-radius: 6px; background: #fff; }
+.sim select { font: inherit; padding: 3px 6px; border: 1px solid var(--border); border-radius: 6px; background: #fff; }
+.sim-clock { align-items: center; gap: 6px; margin-bottom: 8px; }

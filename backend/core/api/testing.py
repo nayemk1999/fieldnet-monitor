@@ -5,7 +5,7 @@ from rest_framework.views import APIView
 
 from core import clock, jobs
 from core.api.serializers import ClockIn, FaultsIn, validate
-from core.errors import conflict
+from core.errors import conflict, not_found
 from core.models import (
     Batch, Command, Cycle, CycleResult, Gateway, QuarantinedReading, Reading, Sensor, TestState, TimelineEntry,
 )
@@ -42,3 +42,13 @@ class FaultsView(APIView):
         n = validate(FaultsIn, request.data)["processing_failures"]
         TestState.objects.update_or_create(pk=1, defaults={"processing_failures": n})
         return Response({"processing_failures": n})
+
+
+class GatewayTokenView(APIView):
+    """Re-show a gateway's token so the console's device simulator can act as it.
+    Test-only: the operator API shows a token once, at registration."""
+    def get(self, request, gateway_id):
+        token = Gateway.objects.filter(pk=gateway_id).values_list("token", flat=True).first()
+        if token is None:
+            raise not_found("gateway", gateway_id)
+        return Response({"gateway_id": gateway_id, "token": token})

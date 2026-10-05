@@ -31,3 +31,9 @@ def test_paused_flag_marks_a_timer_that_is_not_running(h):
     h.heartbeat("G", day(15, 1), "auth_failed")
     row = [x for x in h.c.get("/api/v1/console/sensors").json()["items"] if x["sensor_id"] == "S"][0]
     assert row["paused"] is True and row["next_evaluation_at"] is None and row["coverage"] == "recoverable"
+
+
+def test_test_mode_returns_a_registered_gateways_token(h):
+    token = h.gateway("G")
+    assert h.c.get("/test/gateways/G/token").json() == {"gateway_id": "G", "token": token}
+    assert h.c.get("/test/gateways/nope/token").status_code == 404

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ApiError, registerGateway } from "@/lib/api";
+import { ApiError, registerGateway, saveGatewayToken } from "@/lib/api";
 
 export function RegisterGateway({ onDone, onError }: { onDone: () => void; onError: (msg: string) => void }) {
   const [open, setOpen] = useState(false);
@@ -15,6 +15,7 @@ export function RegisterGateway({ onDone, onError }: { onDone: () => void; onErr
     if (!gatewayId) return onError("Gateway id is required.");
     try {
       const res = await registerGateway(gatewayId, name.trim() || gatewayId);
+      saveGatewayToken(gatewayId, res.token);
       setToken({ id: gatewayId, token: res.token });
       setId("");
       setName("");
@@ -40,7 +41,7 @@ export function RegisterGateway({ onDone, onError }: { onDone: () => void; onErr
       )}
       {token && (
         <div className="token-box">
-          Token for <strong>{token.id}</strong>, shown once. The device sends it as <code>Authorization: Bearer …</code>
+          Token for <strong>{token.id}</strong>, shown once (also saved in this browser for the gateway's device simulator). The device sends it as <code>Authorization: Bearer …</code>
           <div className="mono token">{token.token}</div>
           <button onClick={() => setToken(null)}>Dismiss</button>
         </div>

@@ -115,3 +115,51 @@ export const setCoverage = (sensor_id: string, gateway_ids: string[]) =>
     method: "PUT",
     body: JSON.stringify({ gateway_ids }),
   });
+
+// Gateway tokens are shown once at registration; the console keeps them in this browser
+// so the device simulator can act as the gateway.
+// ponytail: localStorage only, so another browser has to paste the token in.
+const tokenKey = (gatewayId: string) => `gw-token:${gatewayId}`;
+
+export function saveGatewayToken(gatewayId: string, token: string) {
+  try {
+    localStorage.setItem(tokenKey(gatewayId), token);
+  } catch {
+    /* storage blocked: the token can still be pasted into the simulator */
+  }
+}
+
+export function loadGatewayToken(gatewayId: string): string {
+  try {
+    return localStorage.getItem(tokenKey(gatewayId)) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+/** TEST_MODE only (404 on a live system): re-reads a registered gateway's token. */
+export const fetchTestGatewayToken = (gatewayId: string) =>
+  api<{ token: string }>(`/test/gateways/${encodeURIComponent(gatewayId)}/token`).then((r) => r.token);
+
+export type RawResponse = { status: number; statusText: string; body: unknown };
+
+/** Like `curl -i`: never throws on HTTP errors, returns status + parsed body for display. */
+export async function rawCall(path: string, method: string, token?: string, body?: unknown): Promise<RawResponse> {
+  const res = await fetch(`${API_BASE}${path}`, {
+    method,
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: body === undefined ? undefined : JSON.stringify(body),
+    cache: "no-store",
+  });
+  const text = await res.text();
+  let parsed: unknown = text;
+  try {
+    parsed = text ? JSON.parse(text) : null;
+  } catch {
+    /* non-JSON body: show raw text */
+  }
+  return { status: res.status, statusText: res.statusText, body: parsed };
+}

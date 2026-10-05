@@ -33,4 +33,5 @@ if settings.TEST_MODE:
         path("test/clock", testing.ClockView.as_view()),
         path("test/drain", testing.DrainView.as_view()),
         path("test/faults", testing.FaultsView.as_view()),
+        path("test/gateways/<str:gateway_id>/token", testing.GatewayTokenView.as_view()),
     ]
