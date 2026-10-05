@@ -1,0 +1,59 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: fieldnet
+      POSTGRES_USER: fieldnet
+      POSTGRES_PASSWORD: fieldnet
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fieldnet -d fieldnet"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - dbdata:/var/lib/postgresql/data
+
+  api:
+    build: ./backend
+    command: ["./entrypoint.sh", "api"]
+    environment: &backend_env
+      DB_HOST: db
+      DB_NAME: fieldnet
+      DB_USER: fieldnet
+      DB_PASSWORD: fieldnet
+      # TEST_MODE=1 exposes /test/* and makes background work run only inside
+      # /test/clock and /test/drain. Set TEST_MODE=0 for a live system.
+      TEST_MODE: ${TEST_MODE:-1}
+      FIELDNET_URL: http://api:8000
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/console/summary')"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+  worker:
+    build: ./backend
+    command: ["./entrypoint.sh", "worker"]
+    environment: *backend_env
+    depends_on:
+      api:
+        condition: service_healthy
+
+  web:
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+    ports:
+      - "3000:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  dbdata:
