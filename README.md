@@ -5,6 +5,18 @@ unreliable. Django + DRF + PostgreSQL backend, Next.js + TypeScript console,
 Python simulator. Design notes are in [DECISIONS.md](DECISIONS.md), tooling notes
 in [AI.md](AI.md), the console API in [docs/console-api.md](docs/console-api.md).
 
+## Get the code
+
+```bash
+git clone https://github.com/nayemk1999/fieldnet-monitor.git
+cd fieldnet-monitor
+```
+
+Every command below runs from this folder (the repo root) unless it says `cd backend` or `cd frontend`.
+
+## Contents
+
+- [Get the code](#get-the-code)
 - [Run everything](#run-everything)
 - [Testing at a glance](#testing-at-a-glance)
 - [1. Automated tests (pytest)](#1-automated-tests-pytest)
@@ -12,7 +24,7 @@ in [AI.md](AI.md), the console API in [docs/console-api.md](docs/console-api.md)
 - [3. Manual API testing with curl](#3-manual-api-testing-with-curl)
 - [4. UI testing (console)](#4-ui-testing-console)
 - [API reference](#api-reference)
-- [Local development](#local-development)
+- [Local development (without Docker)](#local-development-without-docker)
 - [Layout](#layout)
 
 ## Run everything
@@ -48,6 +60,9 @@ and `/test/*` returns 404.
 | Simulator stories | `docker compose run --rm api python simulate.py` | running `api` |
 | Manual API calls | `curl` against http://localhost:8000 (see below) | running `api`, `TEST_MODE=1` |
 | UI walkthrough | open http://localhost:3000 | full compose stack |
+
+Running without Docker? See [Local development](#local-development-without-docker). The same
+tests run there.
 
 ## 1. Automated tests (pytest)
 
@@ -277,18 +292,139 @@ Response shapes and field meanings: [docs/console-api.md](docs/console-api.md).
 | POST | `/test/faults` | `{"processing_failures": n}` | next `n` batch processing attempts fail |
 | GET | `/test/gateways/{id}/token` | — | `{"gateway_id", "token"}`, used by the console's device simulator |
 
-## Local development
+## Local development (without Docker)
+
+Start from the repo root (see [Get the code](#get-the-code)). Each step that says `cd backend` or `cd frontend` starts from the root.
+
+### Step 1 — Install the tools (once)
+
+| Tool | Version | macOS install |
+|---|---|---|
+| Python | 3.12 | `brew install python@3.12` |
+| PostgreSQL | 16 | `brew install postgresql@16` |
+| Node.js | 20+ | `brew install node` |
+
+### Step 2 — Start Postgres
 
 ```bash
-# backend (needs local Postgres; defaults: db fieldnet, user $USER, no password)
-cd backend && TEST_MODE=1 .venv/bin/python manage.py runserver 8000
-# frontend
-cd frontend && npm install && npm run dev        # http://localhost:3000, talks to :8000
-# simulator against the local backend
-cd backend && FIELDNET_URL=http://localhost:8000 .venv/bin/python simulate.py
+brew services start postgresql@16
+pg_isready                      # expect: localhost:5432 - accepting connections
 ```
 
-Environment variables (backend): `DB_HOST DB_PORT DB_NAME DB_USER DB_PASSWORD`,
+### Step 3 — Create the database (once)
+
+```bash
+createdb fieldnet
+```
+
+The backend connects with db `fieldnet`, user `$USER`, no password, `localhost:5432`.
+Using other credentials? Export them in **every** backend terminal:
+
+```bash
+export DB_NAME=fieldnet DB_USER=fieldnet DB_PASSWORD=fieldnet DB_HOST=localhost DB_PORT=5432
+```
+
+### Step 4 — Set up the backend (once)
+
+```bash
+cd backend
+python3.12 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+.venv/bin/python manage.py migrate          # also re-run after pulling new migrations
+```
+
+### Step 5 — Set up the frontend (once)
+
+```bash
+cd frontend
+npm install
+```
+
+### Step 6 — Start the API (terminal 1)
+
+```bash
+cd backend
+TEST_MODE=1 DEBUG=1 .venv/bin/python manage.py runserver 8000
+```
+
+`TEST_MODE=1` turns on `/test/*` and the test clock. Check it from another terminal:
+
+```bash
+curl localhost:8000/api/v1/console/summary  # expect JSON with "now", "gateways", "sensors"
+```
+
+### Step 7 — Start the console (terminal 2)
+
+```bash
+cd frontend
+npm run dev                                  # http://localhost:3000
+```
+
+It calls `http://localhost:8000` by default. If the API is on another port:
+`NEXT_PUBLIC_API_URL=http://localhost:8001 npm run dev`.
+
+### Step 8 — Run the automated tests (terminal 3)
+
+```bash
+cd backend
+TEST_MODE=1 .venv/bin/python -m pytest -q    # expect: 34 passed (uses a separate test_fieldnet DB)
+cd ../frontend
+npm run typecheck                            # TypeScript check, expect no errors
+```
+
+### Step 9 — Run the simulator stories (terminal 3)
+
+Needs the API from step 6. Each story wipes the data first.
+
+```bash
+cd backend
+FIELDNET_URL=http://localhost:8000 .venv/bin/python simulate.py    # expect exit code 0
+```
+
+### Step 10 — Test the API by hand
+
+Follow [section 3](#3-manual-api-testing-with-curl). It works unchanged against the local API on `:8000`.
+
+### Step 11 — Test the UI
+
+Open http://localhost:3000 and follow [section 4](#4-ui-testing-console).
+To start over: `curl -X POST localhost:8000/test/reset`, then refresh the browser.
+
+### Step 12 — Stop
+
+`Ctrl+C` in terminals 1 and 2. Optionally `brew services stop postgresql@16`.
+
+### Optional — live mode (real time, background worker)
+
+Use this to watch the system run on the real clock, not for testing.
+
+```bash
+# terminal 1
+cd backend && TEST_MODE=0 .venv/bin/python manage.py runserver 8000
+# terminal 2: processes batches and due transitions every WORKER_POLL_SECONDS
+cd backend && TEST_MODE=0 .venv/bin/python manage.py run_worker
+# terminal 3
+cd frontend && npm run dev
+```
+
+In live mode `/test/*` returns 404. Steps 9–11 and the console's clock buttons need `TEST_MODE=1`.
+
+### Troubleshooting
+
+| Symptom | Fix |
+|---|---|
+| `connection refused` on port 5432 | Postgres isn't running: `brew services start postgresql@16` |
+| `database "fieldnet" does not exist` | `createdb fieldnet`, then `migrate` |
+| `role "<you>" does not exist` | `createuser -s $USER`, or set `DB_USER` / `DB_PASSWORD` |
+| pytest: `permission denied to create database` | the DB user needs `CREATEDB`: `psql -c 'ALTER USER <user> CREATEDB'` |
+| `/test/...` returns 404 | the server was started without `TEST_MODE=1` |
+| `409 clock_backwards` | the test clock only moves forward: `curl -X POST localhost:8000/test/reset` |
+| console shows a network error | the API isn't on `:8000`, or `NEXT_PUBLIC_API_URL` points somewhere else |
+| port 8000 or 3000 in use | `docker compose down`, or use another port (`runserver 8001`, `npm run dev -- -p 3001`) |
+
+### Environment variables
+
+Backend: `DB_HOST DB_PORT DB_NAME DB_USER DB_PASSWORD`,
 `TEST_MODE`, `DEBUG`, `SECRET_KEY`, `WORKER_POLL_SECONDS`, and the thresholds
 `QUIET_DAYS_BEFORE_DORMANT DORMANT_WAIT_DAYS SAMPLING_WINDOW_HOURS
 SAMPLING_CYCLES_BEFORE_RETIRED STALE_AFTER_HOURS COMMAND_TIMEOUT_MINUTES
